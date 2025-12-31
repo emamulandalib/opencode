@@ -43,6 +43,7 @@ export type PromptProps = {
   ref?: (ref: PromptRef) => void
   hint?: JSX.Element
   showPlaceholder?: boolean
+  showShortcuts?: boolean
 }
 
 export type PromptRef = {
@@ -77,6 +78,8 @@ export function Prompt(props: PromptProps) {
   const renderer = useRenderer()
   const { theme, syntax } = useTheme()
   const kv = useKV()
+
+  const showShortcuts = createMemo(() => props.showShortcuts ?? kv.get("shortcuts_visible", true))
 
   function promptModelWarning() {
     toast.show({
@@ -1125,28 +1128,30 @@ export function Prompt(props: PromptProps) {
             </box>
           </Show>
           <Show when={status().type !== "retry"}>
-            <box gap={2} flexDirection="row">
-              <Switch>
-                <Match when={store.mode === "normal"}>
-                  <Show when={local.model.variant.list().length > 0}>
+            <Show when={showShortcuts()}>
+              <box gap={2} flexDirection="row">
+                <Switch>
+                  <Match when={store.mode === "normal"}>
+                    <Show when={local.model.variant.list().length > 0}>
+                      <text fg={theme.text}>
+                        {keybind.print("variant_cycle")} <span style={{ fg: theme.textMuted }}>variants</span>
+                      </text>
+                    </Show>
                     <text fg={theme.text}>
-                      {keybind.print("variant_cycle")} <span style={{ fg: theme.textMuted }}>variants</span>
+                      {keybind.print("agent_cycle")} <span style={{ fg: theme.textMuted }}>switch agent</span>
                     </text>
-                  </Show>
-                  <text fg={theme.text}>
-                    {keybind.print("agent_cycle")} <span style={{ fg: theme.textMuted }}>agents</span>
-                  </text>
-                  <text fg={theme.text}>
-                    {keybind.print("command_list")} <span style={{ fg: theme.textMuted }}>commands</span>
-                  </text>
-                </Match>
-                <Match when={store.mode === "shell"}>
-                  <text fg={theme.text}>
-                    esc <span style={{ fg: theme.textMuted }}>exit shell mode</span>
-                  </text>
-                </Match>
-              </Switch>
-            </box>
+                    <text fg={theme.text}>
+                      {keybind.print("command_list")} <span style={{ fg: theme.textMuted }}>commands</span>
+                    </text>
+                  </Match>
+                  <Match when={store.mode === "shell"}>
+                    <text fg={theme.text}>
+                      esc <span style={{ fg: theme.textMuted }}>exit shell mode</span>
+                    </text>
+                  </Match>
+                </Switch>
+              </box>
+            </Show>
           </Show>
         </box>
       </box>

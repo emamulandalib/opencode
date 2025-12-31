@@ -1,5 +1,4 @@
 import {
-  batch,
   createContext,
   createEffect,
   createMemo,
@@ -145,15 +144,17 @@ export function Session() {
   })
 
   const dimensions = useTerminalDimensions()
-  const [sidebar, setSidebar] = kv.signal<"auto" | "hide">("sidebar", "auto")
-  const [sidebarOpen, setSidebarOpen] = createSignal(false)
+  const [sidebar, setSidebar] = kv.signal<"show" | "hide" | "auto">("sidebar", "auto")
+  const [headerVisible, setHeaderVisible] = kv.signal("header_visible", true)
+  const [footerVisible, setFooterVisible] = kv.signal("footer_visible", true)
+  const [shortcutsVisible, setShortcutsVisible] = kv.signal("shortcuts_visible", true)
+  const [usernameVisible, setUsernameVisible] = kv.signal("username_visible", true)
   const [conceal, setConceal] = createSignal(true)
   const [showThinking, setShowThinking] = kv.signal("thinking_visibility", true)
   const [timestamps, setTimestamps] = kv.signal<"hide" | "show">("timestamps", "hide")
   const [showDetails, setShowDetails] = kv.signal("tool_details_visibility", true)
   const [showAssistantMetadata, setShowAssistantMetadata] = kv.signal("assistant_metadata_visibility", true)
   const [showScrollbar, setShowScrollbar] = kv.signal("scrollbar_visible", false)
-  const [showHeader, setShowHeader] = kv.signal("header_visible", true)
   const [diffWrapMode] = kv.signal<"word" | "none">("diff_wrap_mode", "word")
   const [animationsEnabled, setAnimationsEnabled] = kv.signal("animations_enabled", true)
   const [showGenericToolOutput, setShowGenericToolOutput] = kv.signal("generic_tool_output_visibility", false)
@@ -161,7 +162,7 @@ export function Session() {
   const wide = createMemo(() => dimensions().width > 120)
   const sidebarVisible = createMemo(() => {
     if (session()?.parentID) return false
-    if (sidebarOpen()) return true
+    if (sidebar() === "show") return true
     if (sidebar() === "auto" && wide()) return true
     return false
   })
@@ -531,10 +532,65 @@ export function Session() {
       keybind: "sidebar_toggle",
       category: "Session",
       onSelect: (dialog) => {
-        batch(() => {
-          const isVisible = sidebarVisible()
-          setSidebar(() => (isVisible ? "hide" : "auto"))
-          setSidebarOpen(!isVisible)
+        setSidebar((prev) => {
+          if (prev === "auto") return sidebarVisible() ? "hide" : "show"
+          if (prev === "show") return "hide"
+          return "show"
+        })
+        if (sidebar() === "show") kv.set("sidebar", "auto")
+        if (sidebar() === "hide") kv.set("sidebar", "hide")
+        dialog.clear()
+      },
+    },
+    {
+      title: headerVisible() ? "Hide header" : "Show header",
+      value: "session.header.toggle",
+      category: "View",
+      onSelect: (dialog) => {
+        setHeaderVisible((prev) => {
+          const next = !prev
+          kv.set("header_visible", next)
+          return next
+        })
+        dialog.clear()
+      },
+    },
+    {
+      title: footerVisible() ? "Hide footer" : "Show footer",
+      value: "session.footer.toggle",
+      category: "View",
+      onSelect: (dialog) => {
+        setFooterVisible((prev) => {
+          const next = !prev
+          kv.set("footer_visible", next)
+          return next
+        })
+        dialog.clear()
+      },
+    },
+    {
+      title: shortcutsVisible() ? "Hide shortcuts" : "Show shortcuts",
+      value: "session.shortcuts.toggle",
+      category: "View",
+      onSelect: (dialog) => {
+        setShortcutsVisible((prev) => {
+          const next = !prev
+          kv.set("shortcuts_visible", next)
+          return next
+        })
+        dialog.clear()
+      },
+    },
+    {
+      title: usernameVisible() ? "Hide username" : "Show username",
+      value: "session.username_visible.toggle",
+      keybind: "username_toggle",
+      category: "Session",
+      onSelect: (dialog) => {
+        setUsernameVisible((prev) => {
+          const next = !prev
+          kv.set("username_visible", next)
+          return next
         })
         dialog.clear()
       },
@@ -597,11 +653,11 @@ export function Session() {
       },
     },
     {
-      title: showHeader() ? "Hide header" : "Show header",
+      title: headerVisible() ? "Hide header" : "Show header",
       value: "session.toggle.header",
       category: "Session",
       onSelect: (dialog) => {
-        setShowHeader((prev) => !prev)
+        setHeaderVisible((prev) => !prev)
         dialog.clear()
       },
     },
@@ -995,9 +1051,16 @@ export function Session() {
       }}
     >
       <box flexDirection="row">
-        <box flexGrow={1} paddingBottom={1} paddingTop={1} paddingLeft={2} paddingRight={2} gap={1}>
+        <box
+          flexGrow={1}
+          paddingBottom={footerVisible() ? 1 : 0}
+          paddingTop={1}
+          paddingLeft={2}
+          paddingRight={2}
+          gap={1}
+        >
           <Show when={session()}>
-            <Show when={showHeader() && (!sidebarVisible() || !wide())}>
+            <Show when={(!sidebarVisible() || !wide()) && headerVisible()}>
               <Header />
             </Show>
             <scrollbox
@@ -1136,8 +1199,12 @@ export function Session() {
                   toBottom()
                 }}
                 sessionID={route.sessionID}
+                showShortcuts={shortcutsVisible()}
               />
             </box>
+            <Show when={(!sidebarVisible() || !wide()) && footerVisible()}>
+              <Footer />
+            </Show>
           </Show>
           <Toast />
         </box>
